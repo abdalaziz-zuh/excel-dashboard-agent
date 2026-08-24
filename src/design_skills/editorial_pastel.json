@@ -1,0 +1,13 @@
+{
+  "id": "editorial_pastel",
+  "label": "Editorial Pastel",
+  "mood": "marketing, friendly, approachable",
+  "background": "#FFF8F2",
+  "surface": "#FFFFFF",
+  "text_primary": "#2E2A26",
+  "text_secondary": "#8A7F76",
+  "accent_palette": ["#F6A6B2", "#A6D8D4", "#F9D976", "#B7A6DE"],
+  "font": "Poppins, sans-serif",
+  "layout": "large_hero_chart_top",
+  "chart_style": {"gridlines": false, "corner_radius": 12, "shadow": true}
+}

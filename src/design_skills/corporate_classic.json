@@ -1,0 +1,13 @@
+{
+  "id": "corporate_classic",
+  "label": "Corporate BI Classic",
+  "mood": "conservative, executive-report",
+  "background": "#FFFFFF",
+  "surface": "#F4F6F8",
+  "text_primary": "#1F2937",
+  "text_secondary": "#4B5563",
+  "accent_palette": ["#1F4E79", "#2E86AB", "#6FA8DC", "#A9C9E0"],
+  "font": "Segoe UI, sans-serif",
+  "layout": "two_column_grid",
+  "chart_style": {"gridlines": true, "corner_radius": 4, "shadow": false}
+}

@@ -1,0 +1,13 @@
+{
+  "id": "corporate_dark",
+  "label": "Corporate Dark / Terminal",
+  "mood": "financial, high-density, serious",
+  "background": "#0E1117",
+  "surface": "#171B24",
+  "text_primary": "#E6E6E6",
+  "text_secondary": "#9AA4B2",
+  "accent_palette": ["#00C2A8", "#3E7BFA", "#FF6B6B", "#FFC85C"],
+  "font": "IBM Plex Mono, monospace",
+  "layout": "sidebar_nav_dense_grid",
+  "chart_style": {"gridlines": true, "corner_radius": 0, "shadow": false}
+}

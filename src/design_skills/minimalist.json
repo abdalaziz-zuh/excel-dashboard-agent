@@ -1,0 +1,13 @@
+{
+  "id": "minimalist",
+  "label": "Minimalist Light",
+  "mood": "clean, editorial, low-ink",
+  "background": "#FAFAFA",
+  "surface": "#FFFFFF",
+  "text_primary": "#1A1A1A",
+  "text_secondary": "#6B6B6B",
+  "accent_palette": ["#2B2B2B", "#8C8C8C", "#C4C4C4", "#E8DCC8"],
+  "font": "Inter, sans-serif",
+  "layout": "kpi_cards_top_grid_below",
+  "chart_style": {"gridlines": false, "corner_radius": 2, "shadow": false}
+}

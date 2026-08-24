@@ -1,0 +1,8 @@
+streamlit>=1.37
+pandas>=2.2
+openpyxl>=3.1
+plotly>=5.22
+groq>=0.9
+python-dotenv>=1.0
+watchdog>=4.0
+requests>=2.31

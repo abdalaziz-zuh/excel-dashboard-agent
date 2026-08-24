@@ -1,0 +1,23 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+# user-generated at runtime — never commit someone's actual business data or templates
+configs/
+output/
+data/
+test_watch/
+test_output/
+*.processed.json
+
+# secrets
+.env
+.streamlit/secrets.toml
+
+# OS/editor noise
+.DS_Store
+*.log
+.vscode/
+.idea/
