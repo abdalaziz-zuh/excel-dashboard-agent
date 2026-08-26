@@ -62,7 +62,7 @@ def process_one_file(file_path: Path, configs_dir: str, output_dir: Path) -> dic
 
     output_dir.mkdir(parents=True, exist_ok=True)
     out_path = output_dir / f"{file_path.stem}_dashboard.html"
-    export_html(result, profile, str(out_path), title=f"{match['config']['template_name']} — {file_path.stem}")
+    export_html(result, result["profile"], str(out_path), title=f"{match['config']['template_name']} — {file_path.stem}")
 
     return {
         "status": "processed",

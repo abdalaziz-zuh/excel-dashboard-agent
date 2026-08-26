@@ -73,15 +73,19 @@ def _infer_semantic_type(series: pd.Series) -> str:
     return "text"
 
 
-def profile_excel(file_path: str, sheet_name=0) -> dict:
+def profile_dataframe(df: pd.DataFrame, sheet_name=0) -> dict:
     """
+    Core profiler — works on an already-loaded DataFrame. Split out from
+    profile_excel() so the cleaning agent can re-profile a cleaned copy
+    of the data without re-reading the file from disk.
     Returns {
         "sheet_name": str,
         "n_rows": int,
-        "columns": {col_name: ColumnProfile, ...}
+        "columns": {col_name: ColumnProfile, ...},
+        "dataframe": df
     }
     """
-    df = pd.read_excel(file_path, sheet_name=sheet_name)
+    df = df.copy()
     df.columns = [str(c).strip() for c in df.columns]
 
     columns = {}
@@ -110,6 +114,12 @@ def profile_excel(file_path: str, sheet_name=0) -> dict:
         )
 
     return {"sheet_name": str(sheet_name), "n_rows": len(df), "columns": columns, "dataframe": df}
+
+
+def profile_excel(file_path: str, sheet_name=0) -> dict:
+    """Thin wrapper — reads the file, then profiles it (see profile_dataframe)."""
+    df = pd.read_excel(file_path, sheet_name=sheet_name)
+    return profile_dataframe(df, sheet_name)
 
 
 def schema_signature(profile: dict) -> str:

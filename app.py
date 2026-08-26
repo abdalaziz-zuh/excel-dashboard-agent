@@ -2,13 +2,13 @@ import io
 import zipfile
 
 import streamlit as st
-from src.excel_parser import profile_excel
+from src.excel_parser import profile_excel, profile_dataframe
 from src.chart_rules import recommend_single, recommend_for_pair
 from src.orchestrator import run_pipeline
 from src.renderer import render_tile, apply_light_chrome
 from src.exporter import build_html_string
 from src.excel_exporter import export_excel_bytes
-from src.agents import automation_agent
+from src.agents import automation_agent, cleaning_agent, suggestion_agent
 from src.i18n import STRINGS
 
 CONFIGS_DIR = "configs"  # disk-backed, for people running this app locally + the CLI automation_runner.py
@@ -184,7 +184,9 @@ with tab_build:
 
         if st.session_state.get("last_build"):
             b = st.session_state.last_build
-            result, profile, df = b["result"], b["profile"], b["profile"]["dataframe"]
+            result = b["result"]
+            profile = result["profile"]  # cleaned — NOT the pre-cleaning upload profile in b["profile"]
+            df = profile["dataframe"]
 
             st.subheader(t["dashboard_header"])
             st.markdown(
@@ -206,6 +208,54 @@ with tab_build:
 
             st.subheader(t["report_header"])
             st.markdown(result["report_markdown"])
+
+            cleaning_report = result["cleaning_report"]
+            if cleaning_report["casing_flags"] or cleaning_report["null_flags"]:
+                st.subheader(t["suggestions_header"])
+                st.caption(t["suggestions_caption"])
+                suggestions = suggestion_agent.build_suggestions(cleaning_report, profile["columns"])
+
+                for col, clashes in cleaning_report["casing_flags"].items():
+                    for variants in clashes.values():
+                        sugg = suggestions["casing"].get(col)
+                        if not sugg:
+                            continue
+                        c1, c2 = st.columns([4, 1])
+                        c1.markdown(t["casing_suggestion"].format(col=col, variants=", ".join(repr(v) for v in variants), canonical=sugg["canonical"]))
+                        c1.caption(sugg["reason"])
+                        if c2.button(t["apply_button"], key=f"apply_casing_{col}"):
+                            new_df = cleaning_agent.apply_casing_fix(df, col, sugg["canonical"], variants)
+                            new_profile = profile_dataframe(new_df)
+                            new_result = run_pipeline(new_profile, b["selected_attributes"], b["chart_overrides"], b["design_skill_id"], st.session_state.pairs)
+                            st.session_state.last_build = {**b, "result": new_result}
+                            st.rerun()
+
+                for col, pct in cleaning_report["null_flags"].items():
+                    cp = profile["columns"].get(col)
+                    if not cp:
+                        continue
+                    if col in suggestions["null_categorical"]:
+                        sugg = suggestions["null_categorical"][col]
+                        c1, c2 = st.columns([4, 1])
+                        c1.markdown(t["null_categorical_suggestion"].format(col=col, pct=pct, label=sugg["label"]))
+                        c1.caption(sugg["reason"])
+                        if c2.button(t["apply_button"], key=f"apply_nullcat_{col}"):
+                            new_df = cleaning_agent.apply_categorical_fill(df, col, sugg["label"])
+                            new_profile = profile_dataframe(new_df)
+                            new_result = run_pipeline(new_profile, b["selected_attributes"], b["chart_overrides"], b["design_skill_id"], st.session_state.pairs)
+                            st.session_state.last_build = {**b, "result": new_result}
+                            st.rerun()
+                    elif col in suggestions["null_numeric"]:
+                        sugg = suggestions["null_numeric"][col]
+                        c1, c2 = st.columns([4, 1])
+                        c1.markdown(t["null_numeric_suggestion"].format(col=col, pct=pct, strategy=sugg["strategy"]))
+                        c1.caption(sugg["reason"])
+                        if c2.button(t["apply_button"], key=f"apply_nullnum_{col}", disabled=sugg["strategy"] == "leave blank"):
+                            new_df = cleaning_agent.apply_numeric_fill(df, col, sugg["strategy"])
+                            new_profile = profile_dataframe(new_df)
+                            new_result = run_pipeline(new_profile, b["selected_attributes"], b["chart_overrides"], b["design_skill_id"], st.session_state.pairs)
+                            st.session_state.last_build = {**b, "result": new_result}
+                            st.rerun()
 
             st.subheader(t["automation_header"])
             st.caption(t["automation_caption"])
@@ -285,11 +335,12 @@ with tab_batch:
                         )
 
                         stem = f.name.rsplit(".", 1)[0]
+                        cleaned_profile = result["profile"]
                         if output_format == t["output_format_html"]:
-                            content = build_html_string(result, profile, title=f"{match['config']['template_name']} — {stem}").encode("utf-8")
+                            content = build_html_string(result, cleaned_profile, title=f"{match['config']['template_name']} — {stem}").encode("utf-8")
                             zf.writestr(f"{stem}_dashboard.html", content)
                         else:
-                            content = export_excel_bytes(result, profile)
+                            content = export_excel_bytes(result, cleaned_profile)
                             zf.writestr(f"{stem}_dashboard.xlsx", content)
 
                         note = t["log_dropped_note"].format(n=len(remapped["dropped_columns"]), cols=remapped["dropped_columns"]) if remapped["dropped_columns"] else ""
