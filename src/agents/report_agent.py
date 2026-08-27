@@ -13,18 +13,7 @@ profile, and produces a markdown report with two sections:
      so the tool still works with zero API cost.
 """
 
-import os
-
-
-def _get_groq_client():
-    api_key = os.environ.get("GROQ_API_KEY")
-    if not api_key:
-        return None
-    try:
-        from groq import Groq
-        return Groq(api_key=api_key)
-    except Exception:
-        return None
+from src.agents.groq_client import get_groq_client, DEFAULT_MODEL
 
 
 def _mechanical_summary(iteration_log: list[dict]) -> str:
@@ -63,7 +52,7 @@ def _template_data_insights(profile: dict) -> str:
 
 
 def _llm_data_insights(profile: dict) -> str | None:
-    client = _get_groq_client()
+    client = get_groq_client()
     if not client:
         return None
     col_summary = "\n".join(
@@ -78,12 +67,13 @@ def _llm_data_insights(profile: dict) -> str | None:
     )
     try:
         resp = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=DEFAULT_MODEL,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=400,
         )
         return resp.choices[0].message.content
-    except Exception:
+    except Exception as e:
+        print(f"[Signal] Groq insight generation failed, using template fallback: {e}")
         return None
 
 

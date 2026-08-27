@@ -19,11 +19,11 @@ answered by an LLM that can hallucinate a plausible-sounding wrong answer.
 """
 
 import json
-import os
 import random
 from pathlib import Path
 
 from src import chart_rules
+from src.agents.groq_client import get_groq_client  # noqa: F401 — kept for the future real design-LLM upgrade noted in README
 
 DESIGN_SKILLS_DIR = Path(__file__).resolve().parent.parent / "design_skills"
 
@@ -33,17 +33,6 @@ def _load_design_skills() -> list[dict]:
     for f in sorted(DESIGN_SKILLS_DIR.glob("*.json")):
         skills.append(json.loads(f.read_text()))
     return skills
-
-
-def _get_groq_client():
-    api_key = os.environ.get("GROQ_API_KEY")
-    if not api_key:
-        return None
-    try:
-        from groq import Groq
-        return Groq(api_key=api_key)
-    except Exception:
-        return None
 
 
 def pick_design_skill(profile: dict, previous_skill_id: str | None = None) -> dict:

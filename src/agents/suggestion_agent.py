@@ -22,25 +22,14 @@ Every function falls back to a deterministic default when no Groq key is
 configured — same pattern as report_agent.py.
 """
 
-import os
+from src.agents.groq_client import get_groq_client, DEFAULT_MODEL
 
 NUMERIC_FILL_STRATEGIES = {"median", "mean", "forward-fill", "leave blank"}
 
 
-def _get_groq_client():
-    api_key = os.environ.get("GROQ_API_KEY")
-    if not api_key:
-        return None
-    try:
-        from groq import Groq
-        return Groq(api_key=api_key)
-    except Exception:
-        return None
-
-
 def suggest_casing_canonical(column_name: str, variants: list[str]) -> dict:
     """Returns {'canonical': <one of variants>, 'reason': str}."""
-    client = _get_groq_client()
+    client = get_groq_client()
     if client:
         try:
             prompt = (
@@ -49,24 +38,27 @@ def suggest_casing_canonical(column_name: str, variants: list[str]) -> dict:
                 f"variant to standardize on (copy it exactly, no quotes, no extra text)."
             )
             resp = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model=DEFAULT_MODEL,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=20,
             )
             picked = resp.choices[0].message.content.strip().strip("'\"")
             if picked in variants:
                 return {"canonical": picked, "reason": "AI-suggested standard casing"}
-        except Exception:
-            pass
+            return {"canonical": variants[0], "reason": f"AI reply didn't match a real variant ({picked!r}) — used default"}
+        except Exception as e:
+            title_case = [v for v in variants if v == v.title()]
+            canonical = title_case[0] if title_case else sorted(variants)[0]
+            return {"canonical": canonical, "reason": f"AI suggestion failed ({e}) — used default"}
     # deterministic fallback: prefer Title Case if present, else the most common variant
     title_case = [v for v in variants if v == v.title()]
     canonical = title_case[0] if title_case else sorted(variants)[0]
-    return {"canonical": canonical, "reason": "Defaulted to title case (no AI suggestion available)"}
+    return {"canonical": canonical, "reason": "Defaulted to title case (no GROQ_API_KEY configured)"}
 
 
 def suggest_categorical_fill(column_name: str, sample_values: list) -> dict:
     """Returns {'label': str, 'reason': str} — a placeholder label, not a real value."""
-    client = _get_groq_client()
+    client = get_groq_client()
     if client:
         try:
             prompt = (
@@ -76,22 +68,23 @@ def suggest_categorical_fill(column_name: str, sample_values: list) -> dict:
                 f"missing, not a guess at what it might be). Reply with ONLY the label."
             )
             resp = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model=DEFAULT_MODEL,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=15,
             )
             label = resp.choices[0].message.content.strip().strip("'\"")
             if label and len(label) < 40:
                 return {"label": label, "reason": "AI-suggested placeholder"}
-        except Exception:
-            pass
-    return {"label": "Unknown", "reason": "Default placeholder (no AI suggestion available)"}
+            return {"label": "Unknown", "reason": "AI reply looked malformed — used default"}
+        except Exception as e:
+            return {"label": "Unknown", "reason": f"AI suggestion failed ({e}) — used default"}
+    return {"label": "Unknown", "reason": "Default placeholder (no GROQ_API_KEY configured)"}
 
 
 def suggest_numeric_fill_strategy(column_name: str, stats: dict, null_pct: float) -> dict:
     """Returns {'strategy': one of NUMERIC_FILL_STRATEGIES, 'reason': str}.
     NEVER returns a number — see module docstring for why."""
-    client = _get_groq_client()
+    client = get_groq_client()
     if client:
         try:
             prompt = (
@@ -102,19 +95,22 @@ def suggest_numeric_fill_strategy(column_name: str, stats: dict, null_pct: float
                 f"strategy name, exactly as one of those four options."
             )
             resp = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model=DEFAULT_MODEL,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=10,
             )
             strategy = resp.choices[0].message.content.strip().strip("'\"").lower()
             if strategy in NUMERIC_FILL_STRATEGIES:
                 return {"strategy": strategy, "reason": "AI-suggested strategy"}
-        except Exception:
-            pass
+            fallback = "leave blank" if null_pct > 30 else "median"
+            return {"strategy": fallback, "reason": f"AI reply didn't match a known strategy ({strategy!r}) — used default"}
+        except Exception as e:
+            fallback = "leave blank" if null_pct > 30 else "median"
+            return {"strategy": fallback, "reason": f"AI suggestion failed ({e}) — used default"}
     # deterministic fallback: heavy missingness -> don't guess; otherwise median (robust to outliers)
     if null_pct > 30:
-        return {"strategy": "leave blank", "reason": f"{null_pct}% missing is too much to safely fill (no AI suggestion available)"}
-    return {"strategy": "median", "reason": "Default — robust to outliers (no AI suggestion available)"}
+        return {"strategy": "leave blank", "reason": f"{null_pct}% missing is too much to safely fill (no GROQ_API_KEY configured)"}
+    return {"strategy": "median", "reason": "Default — robust to outliers (no GROQ_API_KEY configured)"}
 
 
 def build_suggestions(cleaning_report: dict, columns: dict) -> dict:
